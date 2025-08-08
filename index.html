@@ -240,13 +240,11 @@
         const { useState, useEffect, useRef, useCallback } = React;
         
         // Spotify Configuration
-        const CLIENT_ID = '766df246ddee40088398b6e701d5bdc1'; // Replace with your Spotify Client ID
-        // Try different redirect URIs based on your setup:
-        // For localhost without port: 'http://localhost/auth'
-        // For localhost:3000: 'http://localhost:3000/auth'  
-        // For https: 'https://localhost:5173/auth'
-        // For online: window.location.origin + '/auth'
-        const REDIRECT_URI = 'http://localhost:3000/auth';
+        const CLIENT_ID = '766df246ddee40088398b6e701d5bdc1'; // Your Spotify Client ID
+        // Auto-detect the correct redirect URI based on where the app is hosted
+        const REDIRECT_URI = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000/auth'
+            : window.location.origin + '/auth';
         const SCOPES = [
             'user-read-playback-state',
             'user-modify-playback-state',
