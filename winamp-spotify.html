@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winamp for Spotify</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        
+        :root {
+            --winamp-bg: #1a1a2e;
+            --winamp-border: #0f0f23;
+            --winamp-highlight: #3a3a5e;
+            --winamp-text: #00ff41;
+            --winamp-text-dim: #00cc33;
+            --winamp-button: #2a2a4e;
+            --winamp-button-hover: #3a3a6e;
+            --winamp-led-on: #00ff41;
+            --winamp-led-off: #003311;
+        }
+        
+        .skin-silver {
+            --winamp-bg: #c0c0c0;
+            --winamp-border: #808080;
+            --winamp-highlight: #ffffff;
+            --winamp-text: #000000;
+            --winamp-text-dim: #404040;
+            --winamp-button: #e0e0e0;
+            --winamp-button-hover: #f0f0f0;
+            --winamp-led-on: #0080ff;
+            --winamp-led-off: #002040;
+        }
+        
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'VT323', monospace;
+            overflow: hidden;
+        }
+        
+        .winamp-window {
+            position: absolute;
+            background: var(--winamp-bg);
+            border: 2px solid var(--winamp-border);
+            box-shadow: 
+                inset -1px -1px 0 var(--winamp-border),
+                inset 1px 1px 0 var(--winamp-highlight),
+                2px 2px 10px rgba(0,0,0,0.5);
+            cursor: move;
+        }
+        
+        .winamp-titlebar {
+            background: linear-gradient(90deg, var(--winamp-button) 0%, var(--winamp-highlight) 100%);
+            padding: 2px 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--winamp-border);
+        }
+        
+        .winamp-button {
+            background: var(--winamp-button);
+            border: 1px solid var(--winamp-border);
+            color: var(--winamp-text);
+            padding: 2px 8px;
+            cursor: pointer;
+            font-family: 'VT323', monospace;
+            font-size: 14px;
+            transition: all 0.1s;
+        }
+        
+        .winamp-button:hover {
+            background: var(--winamp-button-hover);
+            transform: translateY(-1px);
+        }
+        
+        .winamp-button:active {
+            transform: translateY(0);
+        }
+        
+        .led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+        }
+        
+        .led.on {
+            background: var(--winamp-led-on);
+            box-shadow: 0 0 4px var(--winamp-led-on);
+        }
+        
+        .led.off {
+            background: var(--winamp-led-off);
+        }
+        
+        .display {
+            background: #000;
+            color: var(--winamp-text);
+            padding: 4px;
+            font-family: 'VT323', monospace;
+            border: 1px solid var(--winamp-border);
+            font-size: 16px;
+        }
+        
+        .marquee {
+            white-space: nowrap;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .marquee-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 15s linear infinite;
+        }
+        
+        @keyframes marquee {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-100%, 0); }
+        }
+        
+        .slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: var(--winamp-border);
+            outline: none;
+            cursor: pointer;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--winamp-text);
+            cursor: pointer;
+            border: 1px solid var(--winamp-border);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: var(--winamp-text);
+            cursor: pointer;
+            border: 1px solid var(--winamp-border);
+        }
+        
+        .spectrum-analyzer {
+            background: #000;
+            border: 1px solid var(--winamp-border);
+            height: 60px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .eq-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100px;
+            height: 4px;
+            background: var(--winamp-border);
+            outline: none;
+            transform: rotate(-90deg);
+            transform-origin: 50px 50px;
+            position: absolute;
+            cursor: pointer;
+        }
+        
+        .eq-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 8px;
+            background: var(--winamp-text);
+            cursor: pointer;
+            border: 1px solid var(--winamp-border);
+        }
+        
+        .playlist-item {
+            padding: 2px 4px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--winamp-border);
+            display: flex;
+            justify-content: space-between;
+            color: var(--winamp-text);
+            font-size: 14px;
+        }
+        
+        .playlist-item:hover {
+            background: var(--winamp-highlight);
+        }
+        
+        .playlist-item.active {
+            background: var(--winamp-button);
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--winamp-bg);
+            border: 2px solid var(--winamp-border);
+            color: var(--winamp-text);
+            padding: 10px 20px;
+            z-index: 10000;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+        
+        // Spotify Configuration
+        const CLIENT_ID = '766df246ddee40088398b6e701d5bdc1'; // Replace with your Spotify Client ID
+        // Try different redirect URIs based on your setup:
+        // For localhost without port: 'http://localhost/auth'
+        // For localhost:3000: 'http://localhost:3000/auth'  
+        // For https: 'https://localhost:5173/auth'
+        // For online: window.location.origin + '/auth'
+        const REDIRECT_URI = 'http://localhost:3000/auth';
+        const SCOPES = [
+            'user-read-playback-state',
+            'user-modify-playback-state',
+            'streaming',
+            'user-read-currently-playing',
+            'playlist-read-private',
+            'playlist-modify-private',
+            'playlist-modify-public'
+        ].join(' ');
+        
+        // Auth Helper Functions
+        const generateRandomString = (length) => {
+            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            const values = crypto.getRandomValues(new Uint8Array(length));
+            return values.reduce((acc, x) => acc + possible[x % possible.length], "");
+        };
+        
+        const sha256 = async (plain) => {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plain);
+            return window.crypto.subtle.digest('SHA-256', data);
+        };
+        
+        const base64encode = (input) => {
+            return btoa(String.fromCharCode(...new Uint8Array(input)))
+                .replace(/=/g, '')
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_');
+        };
+        
+        // Draggable Window Component
+        const DraggableWindow = ({ children, title, defaultPosition, onClose, id }) => {
+            const [position, setPosition] = useState(() => {
+                const saved = localStorage.getItem(`window-pos-${id}`);
+                return saved ? JSON.parse(saved) : defaultPosition;
+            });
+            const [isDragging, setIsDragging] = useState(false);
+            const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+            const windowRef = useRef(null);
+            
+            const handleMouseDown = (e) => {
+                if (e.target.closest('.winamp-titlebar')) {
+                    setIsDragging(true);
+                    setDragStart({
+                        x: e.clientX - position.x,
+                        y: e.clientY - position.y
+                    });
+                }
+            };
+            
+            const handleMouseMove = (e) => {
+                if (isDragging) {
+                    const newPos = {
+                        x: e.clientX - dragStart.x,
+                        y: e.clientY - dragStart.y
+                    };
+                    setPosition(newPos);
+                }
+            };
+            
+            const handleMouseUp = () => {
+                if (isDragging) {
+                    setIsDragging(false);
+                    localStorage.setItem(`window-pos-${id}`, JSON.stringify(position));
+                }
+            };
+            
+            useEffect(() => {
+                if (isDragging) {
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                    return () => {
+                        document.removeEventListener('mousemove', handleMouseMove);
+                        document.removeEventListener('mouseup', handleMouseUp);
+                    };
+                }
+            }, [isDragging, dragStart]);
+            
+            return (
+                <div
+                    ref={windowRef}
+                    className="winamp-window"
+                    style={{ left: position.x, top: position.y }}
+                    onMouseDown={handleMouseDown}
+                >
+                    <div className="winamp-titlebar">
+                        <span style={{ color: 'var(--winamp-text)', fontSize: '14px' }}>{title}</span>
+                        {onClose && (
+                            <button
+                                className="winamp-button"
+                                style={{ padding: '0 4px', fontSize: '12px' }}
+                                onClick={onClose}
+                            >
+                                X
+                            </button>
+                        )}
+                    </div>
+                    <div style={{ padding: '8px' }}>
+                        {children}
+                    </div>
+                </div>
+            );
+        };
+        
+        // Spectrum Analyzer Component
+        const SpectrumAnalyzer = ({ audioContext, isPlaying }) => {
+            const canvasRef = useRef(null);
+            const animationRef = useRef(null);
+            const analyzerRef = useRef(null);
+            
+            useEffect(() => {
+                if (!canvasRef.current) return;
+                
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+                
+                // Create mock data for visualization
+                const draw = () => {
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    if (isPlaying) {
+                        const barCount = 32;
+                        const barWidth = width / barCount;
+                        
+                        ctx.fillStyle = 'var(--winamp-text)';
+                        for (let i = 0; i < barCount; i++) {
+                            const barHeight = Math.random() * height * 0.8;
+                            ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+                        }
+                    }
+                    
+                    animationRef.current = requestAnimationFrame(draw);
+                };
+                
+                draw();
+                
+                return () => {
+                    if (animationRef.current) {
+                        cancelAnimationFrame(animationRef.current);
+                    }
+                };
+            }, [isPlaying]);
+            
+            return (
+                <canvas
+                    ref={canvasRef}
+                    width={280}
+                    height={60}
+                    className="spectrum-analyzer"
+                />
+            );
+        };
+        
+        // Main Window Component
+        const MainWindow = ({ player, currentTrack, isPlaying, onPlayPause, onNext, onPrev, onStop, volume, onVolumeChange, shuffle, onShuffleToggle, repeat, onRepeatToggle }) => {
+            const [progress, setProgress] = useState(0);
+            const [currentTime, setCurrentTime] = useState('00:00');
+            const [duration, setDuration] = useState('00:00');
+            
+            const formatTime = (ms) => {
+                const seconds = Math.floor(ms / 1000);
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            };
+            
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    if (player && isPlaying) {
+                        player.getCurrentState().then(state => {
+                            if (state) {
+                                setProgress((state.position / state.duration) * 100);
+                                setCurrentTime(formatTime(state.position));
+                                setDuration(formatTime(state.duration));
+                            }
+                        });
+                    }
+                }, 1000);
+                
+                return () => clearInterval(interval);
+            }, [player, isPlaying]);
+            
+            return (
+                <div style={{ width: '300px' }}>
+                    {/* Track Display */}
+                    <div className="display" style={{ marginBottom: '8px', height: '40px' }}>
+                        <div className="marquee">
+                            <span className="marquee-content">
+                                {currentTrack ? `${currentTrack.artists[0].name} - ${currentTrack.name}` : 'No track playing'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    {/* Time Display */}
+                    <div className="display" style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{currentTime}</span>
+                        <span>{duration}</span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div style={{ marginBottom: '8px' }}>
+                        <input
+                            type="range"
+                            className="slider"
+                            style={{ width: '100%' }}
+                            min="0"
+                            max="100"
+                            value={progress}
+                            readOnly
+                        />
+                    </div>
+                    
+                    {/* Transport Controls */}
+                    <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                        <button className="winamp-button" onClick={onPrev}>|◀</button>
+                        <button className="winamp-button" onClick={onPlayPause}>
+                            {isPlaying ? '||' : '▶'}
+                        </button>
+                        <button className="winamp-button" onClick={onStop}>■</button>
+                        <button className="winamp-button" onClick={onNext}>▶|</button>
+                    </div>
+                    
+                    {/* Volume Control */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ color: 'var(--winamp-text)', fontSize: '12px' }}>VOL</span>
+                        <input
+                            type="range"
+                            className="slider"
+                            style={{ flex: 1 }}
+                            min="0"
+                            max="100"
+                            value={volume}
+                            onChange={(e) => onVolumeChange(parseInt(e.target.value))}
+                        />
+                        <span style={{ color: 'var(--winamp-text)', fontSize: '12px' }}>{volume}%</span>
+                    </div>
+                    
+                    {/* Shuffle & Repeat */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <button
+                            className="winamp-button"
+                            onClick={onShuffleToggle}
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                            <span className={`led ${shuffle ? 'on' : 'off'}`}></span>
+                            Shuffle
+                        </button>
+                        <button
+                            className="winamp-button"
+                            onClick={onRepeatToggle}
+                            style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                            <span className={`led ${repeat ? 'on' : 'off'}`}></span>
+                            Repeat
+                        </button>
+                    </div>
+                    
+                    {/* Spectrum Analyzer */}
+                    <div style={{ marginTop: '8px' }}>
+                        <SpectrumAnalyzer isPlaying={isPlaying} />
+                    </div>
+                </div>
+            );
+        };
+        
+        // Equalizer Window Component
+        const EqualizerWindow = () => {
+            const bands = ['31', '62', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
+            const presets = ['Flat', 'Rock', 'Pop', 'Jazz', 'Classical', 'Custom'];
+            const [selectedPreset, setSelectedPreset] = useState('Flat');
+            const [eqValues, setEqValues] = useState(bands.reduce((acc, band) => ({ ...acc, [band]: 50 }), {}));
+            
+            const presetValues = {
+                'Flat': bands.reduce((acc, band) => ({ ...acc, [band]: 50 }), {}),
+                'Rock': { '31': 70, '62': 65, '125': 55, '250': 45, '500': 40, '1k': 45, '2k': 55, '4k': 65, '8k': 70, '16k': 70 },
+                'Pop': { '31': 40, '62': 45, '125': 55, '250': 60, '500': 55, '1k': 50, '2k': 45, '4k': 45, '8k': 50, '16k': 50 },
+                'Jazz': { '31': 55, '62': 50, '125': 45, '250': 50, '500': 55, '1k': 60, '2k': 60, '4k': 55, '8k': 50, '16k': 45 },
+                'Classical': { '31': 45, '62': 45, '125': 45, '250': 50, '500': 55, '1k': 55, '2k': 55, '4k': 60, '8k': 65, '16k': 70 },
+                'Custom': bands.reduce((acc, band) => ({ ...acc, [band]: 50 }), {})
+            };
+            
+            const handlePresetChange = (preset) => {
+                setSelectedPreset(preset);
+                setEqValues(presetValues[preset]);
+                localStorage.setItem('eq-preset', preset);
+                localStorage.setItem('eq-values', JSON.stringify(presetValues[preset]));
+            };
+            
+            const handleBandChange = (band, value) => {
+                const newValues = { ...eqValues, [band]: value };
+                setEqValues(newValues);
+                setSelectedPreset('Custom');
+                localStorage.setItem('eq-preset', 'Custom');
+                localStorage.setItem('eq-values', JSON.stringify(newValues));
+            };
+            
+            useEffect(() => {
+                const savedPreset = localStorage.getItem('eq-preset');
+                const savedValues = localStorage.getItem('eq-values');
+                if (savedPreset && savedValues) {
+                    setSelectedPreset(savedPreset);
+                    setEqValues(JSON.parse(savedValues));
+                }
+            }, []);
+            
+            return (
+                <div style={{ width: '350px' }}>
+                    {/* Preset Selector */}
+                    <div style={{ marginBottom: '12px' }}>
+                        <select
+                            className="winamp-button"
+                            style={{ width: '100%', padding: '4px' }}
+                            value={selectedPreset}
+                            onChange={(e) => handlePresetChange(e.target.value)}
+                        >
+                            {presets.map(preset => (
+                                <option key={preset} value={preset}>{preset}</option>
+                            ))}
+                        </select>
+                    </div>
+                    
+                    {/* EQ Sliders */}
+                    <div style={{ display: 'flex', gap: '8px', height: '120px', position: 'relative' }}>
+                        {bands.map((band, index) => (
+                            <div key={band} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                <div style={{ height: '100px', position: 'relative', width: '20px' }}>
+                                    <input
+                                        type="range"
+                                        className="eq-slider"
+                                        min="0"
+                                        max="100"
+                                        value={eqValues[band]}
+                                        onChange={(e) => handleBandChange(band, parseInt(e.target.value))}
+                                        style={{
+                                            position: 'absolute',
+                                            left: '-40px',
+                                            top: '40px'
+                                        }}
+                                    />
+                                </div>
+                                <span style={{ color: 'var(--winamp-text)', fontSize: '10px', marginTop: '8px' }}>
+                                    {band}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {/* Preamp */}
+                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: 'var(--winamp-text)', fontSize: '12px' }}>Preamp</span>
+                        <input
+                            type="range"
+                            className="slider"
+                            style={{ flex: 1 }}
+                            min="0"
+                            max="100"
+                            defaultValue="50"
+                        />
+                    </div>
+                </div>
+            );
+        };
+        
+        // Playlist Window Component
+        const PlaylistWindow = ({ tracks, currentTrack, onTrackSelect, onSearch }) => {
+            const [searchQuery, setSearchQuery] = useState('');
+            const [searchResults, setSearchResults] = useState([]);
+            
+            const handleSearch = async () => {
+                if (searchQuery.trim()) {
+                    // Mock search results
+                    setSearchResults([
+                        { id: '1', name: 'Search Result 1', artists: [{ name: 'Artist 1' }], duration_ms: 180000 },
+                        { id: '2', name: 'Search Result 2', artists: [{ name: 'Artist 2' }], duration_ms: 200000 },
+                    ]);
+                }
+            };
+            
+            const formatDuration = (ms) => {
+                const minutes = Math.floor(ms / 60000);
+                const seconds = Math.floor((ms % 60000) / 1000);
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            };
+            
+            return (
+                <div style={{ width: '400px', height: '300px', display: 'flex', flexDirection: 'column' }}>
+                    {/* Search Bar */}
+                    <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                        <input
+                            type="text"
+                            className="display"
+                            style={{ flex: 1 }}
+                            placeholder="Search tracks..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                        />
+                        <button className="winamp-button" onClick={handleSearch}>Search</button>
+                    </div>
+                    
+                    {/* Playlist */}
+                    <div style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--winamp-border)' }}>
+                        {(searchResults.length > 0 ? searchResults : tracks).map((track, index) => (
+                            <div
+                                key={track.id}
+                                className={`playlist-item ${currentTrack?.id === track.id ? 'active' : ''}`}
+                                onDoubleClick={() => onTrackSelect(track)}
+                            >
+                                <span>{index + 1}. {track.artists[0].name} - {track.name}</span>
+                                <span>{formatDuration(track.duration_ms)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+        
+        // Main App Component
+        const App = () => {
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [accessToken, setAccessToken] = useState(null);
+            const [player, setPlayer] = useState(null);
+            const [deviceId, setDeviceId] = useState(null);
+            const [currentTrack, setCurrentTrack] = useState(null);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [volume, setVolume] = useState(50);
+            const [shuffle, setShuffle] = useState(false);
+            const [repeat, setRepeat] = useState(false);
+            const [showEqualizer, setShowEqualizer] = useState(true);
+            const [showPlaylist, setShowPlaylist] = useState(true);
+            const [skin, setSkin] = useState('default');
+            const [toast, setToast] = useState(null);
+            const [tracks, setTracks] = useState([]);
+            
+            // Mock tracks
+            useEffect(() => {
+                setTracks([
+                    { id: '1', name: 'Llama Whisperer', artists: [{ name: 'The Bytes' }], duration_ms: 210000 },
+                    { id: '2', name: 'Recursive Dreams', artists: [{ name: 'Stack Overflow' }], duration_ms: 185000 },
+                    { id: '3', name: 'Null Pointer Blues', artists: [{ name: 'Debuggers' }], duration_ms: 245000 },
+                    { id: '4', name: 'Async Await Forever', artists: [{ name: 'Promise Band' }], duration_ms: 198000 },
+                    { id: '5', name: 'Git Push Origin Master', artists: [{ name: 'Merge Conflicts' }], duration_ms: 220000 },
+                ]);
+            }, []);
+            
+            // Show toast notification
+            const showToast = (message) => {
+                setToast(message);
+                setTimeout(() => setToast(null), 3000);
+            };
+            
+            // Initialize Spotify Web Playback SDK
+            useEffect(() => {
+                if (!accessToken) return;
+                
+                const script = document.createElement("script");
+                script.src = "https://sdk.scdn.co/spotify-player.js";
+                script.async = true;
+                document.body.appendChild(script);
+                
+                window.onSpotifyWebPlaybackSDKReady = () => {
+                    const spotifyPlayer = new window.Spotify.Player({
+                        name: 'Winamp for Spotify',
+                        getOAuthToken: cb => { cb(accessToken); },
+                        volume: volume / 100
+                    });
+                    
+                    spotifyPlayer.addListener('ready', ({ device_id }) => {
+                        console.log('Ready with Device ID', device_id);
+                        setDeviceId(device_id);
+                        showToast('Player ready! Device connected.');
+                    });
+                    
+                    spotifyPlayer.addListener('not_ready', ({ device_id }) => {
+                        console.log('Device ID has gone offline', device_id);
+                        showToast('Device offline. Please refresh.');
+                    });
+                    
+                    spotifyPlayer.addListener('player_state_changed', state => {
+                        if (!state) return;
+                        setCurrentTrack(state.track_window.current_track);
+                        setIsPlaying(!state.paused);
+                    });
+                    
+                    spotifyPlayer.connect();
+                    setPlayer(spotifyPlayer);
+                };
+                
+                return () => {
+                    if (player) {
+                        player.disconnect();
+                    }
+                };
+            }, [accessToken]);
+            
+            // Auth functions
+            const login = async () => {
+                const codeVerifier = generateRandomString(64);
+                const hashed = await sha256(codeVerifier);
+                const codeChallenge = base64encode(hashed);
+                
+                window.localStorage.setItem('code_verifier', codeVerifier);
+                
+                const authUrl = new URL("https://accounts.spotify.com/authorize");
+                const params = {
+                    response_type: 'code',
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    code_challenge_method: 'S256',
+                    code_challenge: codeChallenge,
+                    redirect_uri: REDIRECT_URI,
+                };
+                
+                authUrl.search = new URLSearchParams(params).toString();
+                window.location.href = authUrl.toString();
+            };
+            
+            // Handle auth callback
+            useEffect(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                
+                if (code) {
+                    const getToken = async () => {
+                        const codeVerifier = localStorage.getItem('code_verifier');
+                        
+                        const response = await fetch('https://accounts.spotify.com/api/token', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                            },
+                            body: new URLSearchParams({
+                                client_id: CLIENT_ID,
+                                grant_type: 'authorization_code',
+                                code: code,
+                                redirect_uri: REDIRECT_URI,
+                                code_verifier: codeVerifier,
+                            }),
+                        });
+                        
+                        const data = await response.json();
+                        setAccessToken(data.access_token);
+                        setIsAuthenticated(true);
+                        localStorage.setItem('spotify_token', data.access_token);
+                        localStorage.setItem('spotify_refresh_token', data.refresh_token);
+                        window.history.replaceState({}, document.title, "/");
+                    };
+                    
+                    getToken();
+                }
+            }, []);
+            
+            // Check for existing token
+            useEffect(() => {
+                const token = localStorage.getItem('spotify_token');
+                if (token) {
+                    setAccessToken(token);
+                    setIsAuthenticated(true);
+                }
+            }, []);
+            
+            // Player controls
+            const handlePlayPause = () => {
+                if (player) {
+                    player.togglePlay();
+                } else {
+                    // Mock play/pause for demo
+                    setIsPlaying(!isPlaying);
+                    if (!currentTrack && tracks.length > 0) {
+                        setCurrentTrack(tracks[0]);
+                    }
+                }
+            };
+            
+            const handleNext = () => {
+                if (player) {
+                    player.nextTrack();
+                } else {
+                    // Mock next track
+                    const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id);
+                    if (currentIndex < tracks.length - 1) {
+                        setCurrentTrack(tracks[currentIndex + 1]);
+                    }
+                }
+            };
+            
+            const handlePrev = () => {
+                if (player) {
+                    player.previousTrack();
+                } else {
+                    // Mock previous track
+                    const currentIndex = tracks.findIndex(t => t.id === currentTrack?.id);
+                    if (currentIndex > 0) {
+                        setCurrentTrack(tracks[currentIndex - 1]);
+                    }
+                }
+            };
+            
+            const handleStop = () => {
+                if (player) {
+                    player.pause();
+                }
+                setIsPlaying(false);
+            };
+            
+            const handleVolumeChange = (newVolume) => {
+                setVolume(newVolume);
+                if (player) {
+                    player.setVolume(newVolume / 100);
+                }
+            };
+            
+            const handleShuffleToggle = () => {
+                setShuffle(!shuffle);
+                // Would call Spotify API to toggle shuffle
+                showToast(`Shuffle ${!shuffle ? 'ON' : 'OFF'}`);
+            };
+            
+            const handleRepeatToggle = () => {
+                setRepeat(!repeat);
+                // Would call Spotify API to toggle repeat
+                showToast(`Repeat ${!repeat ? 'ON' : 'OFF'}`);
+            };
+            
+            const handleTrackSelect = (track) => {
+                setCurrentTrack(track);
+                setIsPlaying(true);
+                // Would call Spotify API to play track
+            };
+            
+            // Keyboard shortcuts
+            useEffect(() => {
+                const handleKeyPress = (e) => {
+                    switch(e.key) {
+                        case ' ':
+                            e.preventDefault();
+                            handlePlayPause();
+                            break;
+                        case 'n':
+                        case 'N':
+                            handleNext();
+                            break;
+                        case 'p':
+                        case 'P':
+                            handlePrev();
+                            break;
+                        case 's':
+                        case 'S':
+                            handleStop();
+                            break;
+                        case '+':
+                        case '=':
+                            handleVolumeChange(Math.min(100, volume + 5));
+                            break;
+                        case '-':
+                        case '_':
+                            handleVolumeChange(Math.max(0, volume - 5));
+                            break;
+                    }
+                };
+                
+                window.addEventListener('keydown', handleKeyPress);
+                return () => window.removeEventListener('keydown', handleKeyPress);
+            }, [volume, isPlaying]);
+            
+            // Not authenticated view
+            if (!isAuthenticated) {
+                return (
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '100vh',
+                        flexDirection: 'column',
+                        gap: '20px'
+                    }}>
+                        <div className="winamp-window" style={{ position: 'relative', padding: '20px' }}>
+                            <h1 style={{ color: 'var(--winamp-text)', fontSize: '48px', margin: 0 }}>
+                                WINAMP FOR SPOTIFY
+                            </h1>
+                            <p style={{ color: 'var(--winamp-text-dim)', textAlign: 'center' }}>
+                                It really whips the llama's ass!
+                            </p>
+                            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                                <button className="winamp-button" onClick={login} style={{ fontSize: '18px', padding: '10px 20px' }}>
+                                    LOGIN WITH SPOTIFY
+                                </button>
+                            </div>
+                            <p style={{ color: 'var(--winamp-text-dim)', fontSize: '12px', marginTop: '20px', textAlign: 'center' }}>
+                                Note: Requires Spotify Premium for playback
+                            </p>
+                        </div>
+                    </div>
+                );
+            }
+            
+            // Main app view
+            return (
+                <div className={skin === 'silver' ? 'skin-silver' : ''}>
+                    {/* Skin Switcher */}
+                    <div style={{ position: 'fixed', top: '10px', right: '10px', zIndex: 1000 }}>
+                        <button 
+                            className="winamp-button"
+                            onClick={() => setSkin(skin === 'default' ? 'silver' : 'default')}
+                        >
+                            Skin: {skin === 'default' ? 'Classic' : 'Silver'}
+                        </button>
+                    </div>
+                    
+                    {/* Main Window */}
+                    <DraggableWindow
+                        title="WINAMP"
+                        defaultPosition={{ x: 50, y: 50 }}
+                        id="main"
+                    >
+                        <MainWindow
+                            player={player}
+                            currentTrack={currentTrack}
+                            isPlaying={isPlaying}
+                            onPlayPause={handlePlayPause}
+                            onNext={handleNext}
+                            onPrev={handlePrev}
+                            onStop={handleStop}
+                            volume={volume}
+                            onVolumeChange={handleVolumeChange}
+                            shuffle={shuffle}
+                            onShuffleToggle={handleShuffleToggle}
+                            repeat={repeat}
+                            onRepeatToggle={handleRepeatToggle}
+                        />
+                    </DraggableWindow>
+                    
+                    {/* Equalizer Window */}
+                    {showEqualizer && (
+                        <DraggableWindow
+                            title="EQUALIZER"
+                            defaultPosition={{ x: 370, y: 50 }}
+                            onClose={() => setShowEqualizer(false)}
+                            id="equalizer"
+                        >
+                            <EqualizerWindow />
+                        </DraggableWindow>
+                    )}
+                    
+                    {/* Playlist Window */}
+                    {showPlaylist && (
+                        <DraggableWindow
+                            title="PLAYLIST"
+                            defaultPosition={{ x: 50, y: 300 }}
+                            onClose={() => setShowPlaylist(false)}
+                            id="playlist"
+                        >
+                            <PlaylistWindow
+                                tracks={tracks}
+                                currentTrack={currentTrack}
+                                onTrackSelect={handleTrackSelect}
+                            />
+                        </DraggableWindow>
+                    )}
+                    
+                    {/* Window Toggle Buttons */}
+                    <div style={{ position: 'fixed', bottom: '10px', left: '10px', display: 'flex', gap: '8px' }}>
+                        {!showEqualizer && (
+                            <button className="winamp-button" onClick={() => setShowEqualizer(true)}>
+                                Show Equalizer
+                            </button>
+                        )}
+                        {!showPlaylist && (
+                            <button className="winamp-button" onClick={() => setShowPlaylist(true)}>
+                                Show Playlist
+                            </button>
+                        )}
+                    </div>
+                    
+                    {/* Toast Notification */}
+                    {toast && (
+                        <div className="toast">
+                            {toast}
+                        </div>
+                    )}
+                    
+                    {/* Premium Warning */}
+                    {!deviceId && isAuthenticated && (
+                        <div style={{
+                            position: 'fixed',
+                            top: '10px',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            background: 'var(--winamp-bg)',
+                            border: '2px solid var(--winamp-border)',
+                            padding: '10px 20px',
+                            color: 'var(--winamp-text)',
+                            zIndex: 10000
+                        }}>
+                            ⚠️ Spotify Premium required for playback. Using demo mode.
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
