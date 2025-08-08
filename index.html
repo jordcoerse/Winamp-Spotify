@@ -242,14 +242,14 @@
         // Spotify Configuration
         const CLIENT_ID = '766df246ddee40088398b6e701d5bdc1'; // Your Spotify Client ID
         
-        // Use root URL with trailing slash for GitHub Pages
+        // Use /auth endpoint for redirect (404.html will handle it)
         const getRedirectUri = () => {
             if (window.location.hostname === 'localhost') {
-                return 'http://localhost:3000/';
+                return 'http://localhost:3000/auth';
             }
-            // For GitHub Pages, use the root URL with trailing slash
+            // For GitHub Pages, use /auth (404.html will redirect back)
             const path = window.location.pathname.replace(/\/$/, '').replace(/\/index\.html$/, '').replace(/\/auth$/, '');
-            return window.location.origin + path + '/';
+            return window.location.origin + path + '/auth';
         };
         
         const REDIRECT_URI = getRedirectUri();
