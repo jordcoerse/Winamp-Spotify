@@ -2,19 +2,26 @@
 <html>
 <head>
     <script>
-        // Redirect to index.html with the auth code
-        const path = window.location.pathname;
-        const query = window.location.search;
-        const hash = window.location.hash;
+        // Get the full URL including query params
+        const fullPath = window.location.href;
         
-        // Remove /auth from path if present
-        const newPath = path.replace('/auth', '');
+        // Extract just the code parameter if it exists
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
         
-        // Redirect to the main page with query params intact
-        window.location.replace(newPath + query + hash);
+        if (code) {
+            // Construct the base URL without /auth
+            const baseUrl = 'https://jordcoerse.github.io/Winamp-Spotify/';
+            
+            // Redirect with the code
+            window.location.replace(baseUrl + '?code=' + code);
+        } else {
+            // Just go to homepage if no code
+            window.location.replace('https://jordcoerse.github.io/Winamp-Spotify/');
+        }
     </script>
 </head>
 <body>
-    Redirecting...
+    <p>Redirecting to Winamp for Spotify...</p>
 </body>
 </html>
