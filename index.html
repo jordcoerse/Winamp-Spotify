@@ -243,7 +243,7 @@
         const CLIENT_ID = '766df246ddee40088398b6e701d5bdc1'; // Your Spotify Client ID
         // Auto-detect the correct redirect URI based on where the app is hosted
         const REDIRECT_URI = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000/auth'
+            ? 'https://jordcoerse.github.io/Winamp-Spotify/auth'
             : window.location.origin + '/auth';
         const SCOPES = [
             'user-read-playback-state',
