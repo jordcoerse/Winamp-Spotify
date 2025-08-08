@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        // Redirect to index.html with the auth code
+        const path = window.location.pathname;
+        const query = window.location.search;
+        const hash = window.location.hash;
+        
+        // Remove /auth from path if present
+        const newPath = path.replace('/auth', '');
+        
+        // Redirect to the main page with query params intact
+        window.location.replace(newPath + query + hash);
+    </script>
+</head>
+<body>
+    Redirecting...
+</body>
+</html>
